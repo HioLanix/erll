@@ -1,0 +1,18 @@
+{"1.2.0",
+[{<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.11.0">>},0},
+ {<<"ersip">>,
+  {git,"https://github.com/poroh/ersip.git",
+       {ref,"a977816d3f48c97dcfb7aee3bca5fcf942833967"}},
+  0},
+ {<<"gun">>,{pkg,<<"gun">>,<<"2.0.0">>},0},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"3.0.0">>},0}]}.
+[
+{pkg_hash,[
+ {<<"cowlib">>, <<"0B9FF9C346629256C42EBE1EEB769A83C6CB771A6EE5960BD110AB0B9B872063">>},
+ {<<"gun">>, <<"2326BC0FD6D9CF628419708270D6FE8B02B8D002CF992E4165A77D997B1DEFD0">>},
+ {<<"jsx">>, <<"20A170ABD4335FC6DB24D5FAD1E5D677C55DADF83D1B20A8A33B5FE159892A39">>}]},
+{pkg_hash_ext,[
+ {<<"cowlib">>, <<"2B3E9DA0B21C4565751A6D4901C20D1B4CC25CBB7FD50D91D2AB6DD287BC86A9">>},
+ {<<"gun">>, <<"6613CB7C62930DC8D58263C44DDA72F8556346BA88358FC929DCBC5F76D04569">>},
+ {<<"jsx">>, <<"37BECA0435F5CA8A2F45F76A46211E76418FBEF80C36F0361C249FC75059DC6D">>}]}
+].
