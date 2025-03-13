@@ -8,12 +8,14 @@
         mysort_time/1,
         stsort_time/1]). 
 -record(student, {name, age, gender, course, group}).
+
+-spec gen(non_negative_integer())->[record()].
 gen(0) -> 
    []; 
-   
   gen(N) when N > 0 -> 
    [rand()|gen(N-1)].
 
+-spec rand() -> record().
    rand() ->
    case crypto:rand_uniform(1,16) of 
     1 ->#student{name="Biba", age=crypto:rand_uniform(1,100), gender="male", course=crypto:rand_uniform(1,5), group=crypto:rand_uniform(1,4)};
@@ -34,6 +36,7 @@ gen(0) ->
     16->#student{name="Ksenya", age=crypto:rand_uniform(1,100), gender="female", course=crypto:rand_uniform(1,5), group=crypto:rand_uniform(1,4)}
 end.
 
+-srec mysort(list())- > tist().
 mysort([]) -> [];
                    %%mysort([]) -> mysort([X || X <- T, X#student.age < 50])  ++ mysort([X || X <- T, X#student.age >= 50]).
 mysort([_] = List) -> List;
@@ -42,10 +45,11 @@ mysort([H|T]) ->
 
 
     
-
+- srec stsort(list())- > tist().
 stsort(Students) -> 
     lists:sort(Students).
-   
+
+-spec gen(non_negative_integer())->[record()].
  mysort_time(N) ->
     A=gen(N),
 StartTime = erlang:monotonic_time(microsecond),
@@ -55,6 +59,7 @@ ElapsedTime = erlang:convert_time_unit(EndTime - StartTime, native, microsecond)
 io:format("Mysort Execution time: ~p microseconds~n", [ElapsedTime]),
 Result.
 
+-spec gen(non_negative_integer())->[record()].
 stsort_time(N) ->
     A=gen(N),
 StartTime = erlang:monotonic_time(microsecond),

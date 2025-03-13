@@ -1,8 +1,13 @@
--module(serv).  %%         cd('c:/Users/Hio/Desktop/serv/').  cd('c:/Users/Пользователь/Desktop/lit erl/serv/'). serv:start().
+-module(serv).  %%         cd('c:/Users/Hio/Desktop/erll/дз09-10/').   cd('c:/Users/Пользователь/Desktop/lit erl/serv/'). serv:start().  /mnt/c/Users/Hio/Desktop/erll/дз09-10/
 -export([start/1, accept_loop/1, writelogin/2 ]). 
 -record(logins, {id, time, ip, method}).
 -include_lib("stdlib/include/qlc.hrl").
+-type port_number() :: 1..65535.
+-type socket() :: term().
+-type peer_address() :: {inet:ip_address(), inet:port_number()}.
+-type method() :: string().
 
+-spec start(port_number()) -> ok.
 start(Port) ->
     {ok, ListenSocket} = gen_tcp:listen(Port, [binary, {active, false}]),
     io:format("Listening on port ~p~n", [Port]),
@@ -10,13 +15,21 @@ start(Port) ->
     mnesia:create_schema([node()]),
     mnesia:start(),
     mnesia:create_table(logins,   [{attributes, record_info(fields, logins)}]),
-    accept_loop(ListenSocket).
+    spawn(fun() -> accept_loop(ListenSocket) end).
 
+-spec accept_loop(socket()) -> no_return().
 accept_loop(ListenSocket) ->
-    {ok, Socket} = gen_tcp:accept(ListenSocket),
-    {ok, PeerAddress} = inet:peername(Socket),
-    spawn(fun() -> handle_client(Socket,PeerAddress)end),
-    accept_loop(ListenSocket).
+    io:format("Waiting for incoming connections...~n"), 
+    case gen_tcp:accept(ListenSocket) of
+        {ok, Socket} ->
+            {ok, PeerAddress} = inet:peername(Socket),
+            io:format("Accepted connection from ~p~n", [PeerAddress]),
+            spawn(fun() -> handle_client(Socket, PeerAddress) end), 
+            accept_loop(ListenSocket);
+        {error, Reason} ->
+            io:format("Connection status: ~p~n", [Reason]), 
+            exit(ListenSocket, kill)
+    end.
 
 handle_client(Socket,PeerAddress) ->
     case  gen_tcp:recv(Socket, 0) of
@@ -30,47 +43,39 @@ handle_client(Socket,PeerAddress) ->
         io:format("Connection closed ~n" )
     end.
 
-handle_request(Request,PeerAddress) ->
-     
-    %% io:format(" ~p ~n", [Request]),
-   %% io:format(" ~p ~n", [PeerAddress]),
-     Req = binary_to_list(Request),
+handle_request(Request, PeerAddress) ->
+    Req = binary_to_list(Request),
     Lines = string:tokens(Req, "\r\n"),
-    [Method | _]= string: tokens (Lines, " "),
+    [FirstLine | _] = Lines, 
+    [Method | _] = string:tokens(FirstLine, " "), 
+
+    %% Determine the response based on the HTTP method
     case Method of
         "GET" -> 
-            M= "HTTP/1.1 200 OK\r\n";
-
-        "POST"->
-            M= "HTTP/1.1 201 Created\r\n";
-        "DELETE"->
-            M= "HTTP/1.1 204 No content\r\n";
-        _->
-            M= "HTTP/1.1 204 Not Implemented\r\n"
-        end,
-     [ContetType | _]= string: tokens (Lines, ""), 
-    case ContetType of
-        "text/html"->
-            CT= "Content-Type: text/html\r\n",
-            ResponseBody= "Hio's\n" ++  "Server\n"++"<div> <span>metod:</span> <span> " ++ Method ++ "</span> </div> \r\n\r\n" ;
-    "application/json"->
-            CT= "Content-Type: application/json\r\n",
-            ResponseBody= "Hio's\n" ++  "Server\n"++"{'method':'"++ Method ++ "'}\r\n\r\n";
+            M = "HTTP/1.1 200 OK\r\n";
+        "POST" ->
+            M = "HTTP/1.1 201 Created\r\n";
+        "DELETE" ->
+            M = "HTTP/1.1 204 No Content\r\n";
         _ ->
-            CT= "Content-Type: wrong content-type\r\n",
-            ResponseBody="Hio's\n" ++  "Server\n"++ "ERRROROROR\r\n\r\n"
-        end,
-       %% [_, Host] = string:tokens(Lines, ": "),
-       %% io:format(" ~p ~n", [Host]),
-        writelogin(PeerAddress,M),
+            M = "HTTP/1.1 501 Not Implemented\r\n"
+    end,
 
-        M ++ CT ++"Content-Length"++ [byte_size(term_to_binary(ResponseBody)), "\r\n\r\n"] ++ ResponseBody.
-        %%ResponseHeader = M++ [byte_size(term_to_binary(ResponseBody)), "\r\n\r\n"] ++ CT,
-        %%ResponseHeader ++ ResponseBody ++ Request.
+    CT = "Content-Type: text/html\r\n",
+     ResponseBody = case Method of
+        "DELETE" -> ""; % No body for DELETE requests
+        _ -> "Hio's\n" ++ "Server\n" ++ "<div> <span>method:</span> <span>" ++ Method ++ "</span> </div> \r\n\r\n"
+    end,
+
+    %% Log the request
+    writelogin(PeerAddress, M),
+
+    %% Build the response
+    M ++ CT ++ "Content-Length: " ++ integer_to_list(length(ResponseBody)) ++ "\r\n\r\n" ++ ResponseBody.
         
         
 
-
+-spec writelogin(peer_address(), method()) -> ok | {error, term()}.
 writelogin(PeerAddress,M) ->
    
     UniqueId = erlang:unique_integer([monotonic, positive]),   
@@ -83,11 +88,9 @@ writelogin(PeerAddress,M) ->
 	end,    
     mnesia:transaction(F).
   
-       %%           cd('c:/Users/Hio/Desktop/serv/').  https://dyp2000.gitbooks.io/russian-armstrong-erlang/content/chapter17.html
+       %%           cd('c:/Users/Hio/Desktop/serv/').  
 
           
-
-
 
 
  %%string:find

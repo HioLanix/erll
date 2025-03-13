@@ -2,6 +2,7 @@
 %% c:/Users/Hio/Desktop/erll/дз08/       cd /mnt/c/Users/Hio/Desktop/erll/дз08/
 -export([start/0]).
 -include_lib("wx/include/wx.hrl").
+-spec start() -> ok.
 start() ->
  h8:start(),
  wx:new(),
@@ -10,8 +11,6 @@ start() ->
 Text=wxTextCtrl:new(Frame, ?wxID_ANY, [ {value,"" },{pos,{15, 10}}, {size, {300,100}}]),
  Font = wxFont:new(8, ?wxFONTFAMILY_DEFAULT, ?wxFONTSTYLE_NORMAL, ?wxFONTWEIGHT_BOLD),
 wxTextCtrl:setFont(Text, Font),
-  
-
  Button1 = wxButton:new(Frame, ?wxID_ANY, [{label, "get data"}, {pos,{430, 0}},
 {size, {70, 70}}]),
 
