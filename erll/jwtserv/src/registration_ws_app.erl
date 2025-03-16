@@ -5,7 +5,7 @@
 -export([stop/1]).
 
 start(_Type, _Args) ->
-    io:format("Starting registration_ws application...~n"),
+    io:format("Starting HIO'S Server...~n"),
     application:ensure_all_started(cowboy),
     application:ensure_all_started(sasl),
     user_storage:init(),
@@ -17,11 +17,11 @@ start(_Type, _Args) ->
             {"/ws", ws_handler, []}
         ]}
     ]),
-    io:format("Dispatch table created. Starting Cowboy server...~n"),
+    io:format("Dispatch table created. ...~n"),
     {ok, _} = cowboy:start_clear(http, [{port, 8080}], #{
         env => #{dispatch => Dispatch}
     }),
-    io:format("Cowboy server started on port 8080.~n"),
+    io:format("server started on port 8080.~n"),
     {ok, self()}.
 
 stop(_State) ->

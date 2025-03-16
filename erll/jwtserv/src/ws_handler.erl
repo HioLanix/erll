@@ -6,7 +6,6 @@
 -export([websocket_handle/2]).
 -export([websocket_info/2]).
 -export([terminate/3]).
--export([send_message/2]).
 
 init(Req0, State) ->
     % Parse query string from the request
@@ -24,7 +23,7 @@ init(Req0, State) ->
                 {ok, Username} ->
                     % If the token is valid, proceed with the WebSocket connection
                     io:format("WebSocket connected for user: ~p~n", [Username]),
-                    user_storage:remember_socket(Username, Req0),
+                  
                     {cowboy_websocket, Req0, #{username => Username}};
                 {error, Reason} ->
                     % If the token is invalid, reject the connection
@@ -35,36 +34,73 @@ init(Req0, State) ->
     end.
 
 websocket_init(State) ->
+      user_storage:remember_socket( <<"testuser">>, self()),
     % Initialize the WebSocket connection
     {ok, State}.
 
-websocket_handle(_Data, State)->
-    io:format("Received data: ~s~n", [_Data]),
-    % Forward the message to the SIP client
-    case ersip_message:get_method(_Data) of
-        <<"MESSAGE">> ->
-            Body = ersip_message:get_body(_Data),
-            To = ersip_message:get_header(<<"To">>, _Data),
-            io:format("Received SIP MESSAGE for ~s: ~s~n", [To, Body]),
-            % Forward the message to the appropriate WebSocket client
-            ws_handler:send_message(To,Body);
-        _ ->
-            % Ignore other SIP methods
-             {ok, State}
+websocket_handle({text, Msg}, State = #{username := SenderUsername}) ->
+    % Ensure the message is valid UTF-8
+    case unicode:characters_to_binary(Msg, utf8, utf8) of
+        {error, _Invalid, _Rest} ->
+            % Invalid UTF-8 data: log the error and close the connection
+            io:format("Invalid UTF-8 message received: ~p~n", [Msg]),
+            {stop, State};
+        {incomplete, _Invalid, _Rest} ->
+            % Incomplete UTF-8 data: log the error and close the connection
+            io:format("Incomplete UTF-8 message received: ~p~n", [Msg]),
+            {stop, State};
+        ValidMsg ->
+             io:format("validsmg: ~p~n", [Msg]),
+            case ValidMsg of
+                <<"keepalive">> ->
+                    {ok, State};
+                <<"send_to ", Rest/binary>> ->
+                    % Parse the "send_to" message
+                    io:format("Parsing send_to message: ~p~n", [Rest]),
+                    case binary:split(Rest, <<" message:">>) of
+                        [RecipientUsernameBinary, MessageBinary] ->
+                            % Look up the recipient's WebSocket connection
+                            io:format("Looking up socket for recipient: ~p~n", [RecipientUsernameBinary]),
+                            case user_storage:find_socket(RecipientUsernameBinary) of
+                                {ok, RecipientPid} ->
+                                    % Forward the message to the recipient
+                                    ForwardMsg = iolist_to_binary([SenderUsername, <<": ">>, MessageBinary]),
+                                    io:format("Forwarding message to recipient ~p: ~p~n", [RecipientPid, ForwardMsg]),
+                                    % Send the message to the recipient  <0.367.0> ! {send_message, <<"meow">>}.
+                                    RecipientPid ! {send_message, ForwardMsg},
+                                    {ok, State};  % Return {ok, State} to continue
+                                {error, not_found} ->
+                                    % Recipient not found: notify the sender
+                                    io:format("Recipient not found: ~p~n", [RecipientUsernameBinary]),
+                                    {reply, {text, <<"Recipient not found">>}, State}
+                            end;
+                        _ ->
+                            % Invalid "send_to" format: notify the sender
+                            io:format("Invalid send_to format: ~p~n", [Rest]),
+                            {reply, {text, <<"Invalid send_to format">>}, State}
+                    end;
+                _ ->
+                    % Log the valid message
+                    io:format("Received unknown message: ~s~n", [ValidMsg]),
+                    % Echo the message back to the client
+                    {reply, {text, <<"Echo: ", ValidMsg/binary>>}, State}
+            end
     end.
-%%websocket_handle(_Data, State) ->
-    % Handle other types of WebSocket data
-    %%{ok, State}.
+% websocket_handle({text, Msg}, State) ->
+%     io:format("DEBUG: Received message: ~p~n", [Msg]),  
+%     {reply, {text, <<"Echo: ", Msg/binary>>}, State}.
 
-websocket_info({sip_message, Body}, State) ->
-    % Forward SIP messages to the WebSocket client
-    {reply, {text, Body}, State};
+websocket_info({send_message, Msg}, State) ->
+    % Forward the message to the client
+    io:format("Sending message to client: ~p~n", [Msg]),  
+    {reply, {text, Msg}, State};
 websocket_info(_Info, State) ->
     % Handle other types of info
     {ok, State}.
 
 terminate(_Reason, _Req, #{username := Username}) ->
     io:format("WebSocket terminated for user: ~p~n", [Username]),
+    io:format("WebSocket terminated by reason: ~p~n", [_Reason]),
     ok;
 terminate(_Reason, _Req, _State) ->
     ok.
@@ -92,12 +128,4 @@ verify_token(Token) ->
     catch
         _:_ ->
             {error, invalid_token}
-    end.
-
-send_message(Client, Message) ->
-    case mnesia:dirty_read(clients,Client) of
-        [{Client, Pid}] ->
-            Pid ! {sip_message, Message};
-        [] ->
-            io:format("Client ~p not found~n", [Client])
     end.

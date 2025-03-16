@@ -5,6 +5,8 @@
 
 init(Req0, State) ->
     {ok, Body, Req1} = cowboy_req:read_body(Req0),
+    io:format("DEBUG: Request Headers: ~p~n", [cowboy_req:headers(Req0)]),
+    io:format("DEBUG: Request Body: ~p~n", [Body]),
     Params = jsx:decode(Body, [return_maps]),
     Username = maps:get(<<"username">>, Params, undefined),
     Password = maps:get(<<"password">>, Params, undefined),

@@ -1,6 +1,6 @@
 -module(registration_handler).
 -behaviour(cowboy_handler).
-
+%%  /mnt/c/Users/Hio/Desktop/jwtserv/
 -export([init/2]).
 
 init(Req0, State) ->
