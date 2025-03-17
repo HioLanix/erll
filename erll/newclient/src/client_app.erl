@@ -3,13 +3,13 @@
 %% /mnt/c/Users/Hio/Desktop/newclient/    client_app:auth_user(testuser,testpass).  client_app:message_to(testuser,meow). client_app:send(meow).client_app:auth_user(poll,qqwq).
 -export([start/2,
         stop/1,
-        connect/2,
+        connect/1,
         register_user/2,
         auth_user/2,
         send/1,
         message_to/2,
         add_friend/1]).
-
+%% start client
 start(_Type, _Args) ->
     io:format("Starting Hio's client application...~n"),
     application:ensure_all_started(gun),
@@ -51,7 +51,7 @@ message_to(Name, Message) ->
             % Construct the message list with binaries
             send([<<"send_to ">>, NameBinary, <<" message:">>, MessageBinary])
     end.
-
+%same as message_to but sends to server tag add_friend
 add_friend(Name) ->
     NameBinary = 
         case Name of
@@ -75,7 +75,7 @@ send(Message0) ->
             _ when is_binary(Message0) -> Message0;
             _ when is_list(Message0) -> list_to_binary(Message0);
             _ when is_atom(Message0) -> atom_to_binary(Message0, utf8);
-            _ -> erlang:error({badarg, Message0})
+            _ -> {error,badarg, Message0}
         end,
     % Ensure the binary is valid UTF-8
     case unicode:characters_to_binary(Message0Binary, utf8, utf8) of
@@ -127,12 +127,12 @@ auth_user(Username, Password) ->
             io:format("auth Response (~p): ~s~n", [StatusCode, ResponseBody]),
             put(user_name, Username),
             put(pass_word, Password),
-            connect(Username, ResponseBody);
+            connect(ResponseBody);
         {error, Reason} ->
             io:format("Error: ~p~n", [Reason])
     end.
 %upgrade ws_socket connection
-connect(Username, Token) ->
+connect(Token) ->
     {ok, ConnPid} = gun:open("localhost", 8080),
     Wsref = gun:ws_upgrade(ConnPid, "/ws?token=" ++ Token),
     io:format("DEBUG: WebSocket upgrade result: ~p~n", [Wsref]),   
