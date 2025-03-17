@@ -28,34 +28,56 @@ start(_Type, _Args) ->
 message_to(Name, Message) ->
     % Convert Name and Message to binaries
     NameBinary = 
-        if
-            is_binary(Name) -> Name;
-            is_list(Name) -> list_to_binary(Name);
-            is_atom(Name) -> atom_to_binary(Name, utf8);
-            true -> erlang:error({badarg, Name})
+        case Name of
+            _ when is_binary(Name) -> Name;
+            _ when is_list(Name) -> list_to_binary(Name);
+            _ when is_atom(Name) -> atom_to_binary(Name, utf8);
+            _ -> {error, badarg}
         end,
     MessageBinary = 
-        if
-            is_binary(Message) -> Message;
-            is_list(Message) -> list_to_binary(Message);
-            is_atom(Message) -> atom_to_binary(Message, utf8);
-            true -> erlang:error({badarg, Message})
+        case Message of
+            _ when is_binary(Message) -> Message;
+            _ when is_list(Message) -> list_to_binary(Message);
+            _ when is_atom(Message) -> atom_to_binary(Message, utf8);
+            _ -> {error, badarg}
         end,
-    % Construct the message list with binaries
-    send([<<"send_to ">>, NameBinary,<<" message:">>, MessageBinary]).
+    % Check if both NameBinary and MessageBinary are valid
+    case {NameBinary, MessageBinary} of
+        {{error, badarg}, _} ->
+            {error, {badarg, Name}};
+        {_, {error, badarg}} ->
+            {error, {badarg, Message}};
+        {NameBinary, MessageBinary} ->
+            % Construct the message list with binaries
+            send([<<"send_to ">>, NameBinary, <<" message:">>, MessageBinary])
+    end.
 
 add_friend(Name) ->
- atom_to_binary(Name, utf8),
- send([<<"add_friend ">>, atom_to_binary(Name, utf8)]).
+    NameBinary = 
+        case Name of
+            _ when is_binary(Name) -> Name;
+            _ when is_list(Name) -> list_to_binary(Name);
+            _ when is_atom(Name) -> atom_to_binary(Name, utf8);
+            _ -> {error, badarg}
+        end,
+    case NameBinary of
+        {error, Reason} ->
+            {error, Reason};
+        _ ->
+            % Construct the message list with binaries
+            send([<<"add_friend ">>, NameBinary])
+    end.
 
 send(Message0) ->
+    % Convert Message0 to a binary
     Message0Binary =
-        if
-            is_binary(Message0) -> Message0;
-            is_list(Message0) -> list_to_binary(Message0);
-            is_atom(Message0) -> atom_to_binary(Message0, utf8);
-            true -> erlang:error({badarg, Message0})
+        case Message0 of
+            _ when is_binary(Message0) -> Message0;
+            _ when is_list(Message0) -> list_to_binary(Message0);
+            _ when is_atom(Message0) -> atom_to_binary(Message0, utf8);
+            _ -> erlang:error({badarg, Message0})
         end,
+    % Ensure the binary is valid UTF-8
     case unicode:characters_to_binary(Message0Binary, utf8, utf8) of
         {error, _Invalid, _Rest} ->
             io:format("Error: Invalid UTF-8 data in message~n"),
@@ -65,6 +87,7 @@ send(Message0) ->
             {error, incomplete_utf8};
         ValidMessage0 ->
             Message1 = <<ValidMessage0/binary>>,
+            % Send the message over the WebSocket connection
             case client_ws_manager:get_connection() of
                 #{ws_ref := Wsref, conn_pid := ConnPid} ->
                     gun:ws_send(ConnPid, Wsref, {text, Message1}),
@@ -108,7 +131,7 @@ auth_user(Username, Password) ->
         {error, Reason} ->
             io:format("Error: ~p~n", [Reason])
     end.
-
+%upgrade ws_socket connection
 connect(Username, Token) ->
     {ok, ConnPid} = gun:open("localhost", 8080),
     Wsref = gun:ws_upgrade(ConnPid, "/ws?token=" ++ Token),
@@ -119,7 +142,7 @@ connect(Username, Token) ->
     spawn(fun() -> loop(ConnPid) end).
 
     
-
+%recieve data
 loop(ConnPid) ->
     io:format("DEBUG: loop/1 is running for ConnPid: ~p~n", [ConnPid]),   
     receive
@@ -133,6 +156,7 @@ loop(ConnPid) ->
             io:format("WebSocket error: ~p~n", [Reason]),
             gun:close(ConnPid)
     end.
+%send keepalive messages
 keepalive(Wsref, ConnPid) ->
     timer:sleep(3000),
     %%io:format("Wsref: ~p~n", [Wsref]),
