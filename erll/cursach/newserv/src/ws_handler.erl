@@ -79,9 +79,9 @@ websocket_handle({text, Msg}, State = #state{username = SenderUsername}) ->
                             io:format("Invalid send_to format: ~p~n", [Rest]),
                             {reply, {text, <<"Invalid send_to format">>}, State}
                     end;
-                _ ->
+                <<"broad_cast ", Rest/binary>> -> 
                     % Broadcast the message to all clients via the broadcast server
-                    BroadcastMessage = iolist_to_binary([SenderUsername, <<": ">>, ValidMsg]),
+                    BroadcastMessage = iolist_to_binary([SenderUsername, <<": ">>, Rest]),
                     gen_server:cast(broadcast_server, {broadcast, BroadcastMessage}),
                     {ok, State}
             end
